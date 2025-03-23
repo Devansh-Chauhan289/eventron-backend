@@ -17,7 +17,9 @@ dotenv.config()
 
 const mediacontroller = async (req) => {
     return new Promise((resolve, reject) => {
-        cloudinary.uploader.upload(req.file.path, (result, error) => {
+        cloudinary.uploader.upload(req.file.path, {
+            timeout: 5000 // Set timeout to 5 seconds (adjust as needed)
+        }, (result, error) => {
             if (error) {
                 console.log("Error - ", error);
                 return reject("Error uploading media");
@@ -32,9 +34,12 @@ const mediacontroller = async (req) => {
 
 const createEventInDatabase = async (req, res) => {
     const { title, description, startTime, endTime, timeZone, location, invitees } = req.body;
-    let parseInvite = JSON.parse(invitees);
-    console.log("parse - ",parseInvite);
-    console.log("invitees - ",invitees);
+    let parseInvite = [];
+    try {
+        parseInvite = JSON.parse(invitees); // Only parse if the data is a valid JSON
+    } catch (e) {
+        return res.status(400).json({ msg: "Invitees data is not valid JSON" });
+    }
 
     if (!title || !startTime || !location) {
         return res.status(400).json({ msg: "Missing required fields" });
@@ -105,16 +110,26 @@ const createEventInDatabase = async (req, res) => {
 
         // Google Calendar integration (optional)
         if (req.user.accessToken) {
-            const oauth2Client = getAuthClient();
-            oauth2Client.setCredentials({ access_token: req.user.accessToken });
-            await createEvent(oauth2Client, {
-                summary: title,
-                description,
-                start: { dateTime: startTime, timeZone: timeZone },
-                end: { dateTime: eventEndTime, timeZone: timeZone },
-                location,
-            });
+            try {
+                const oauth2Client = getAuthClient();
+                oauth2Client.setCredentials({ access_token: req.user.accessToken });
+        
+                // Test if the token is valid by making an API call
+                await oauth2Client.getAccessToken();
+        
+                await createEvent(oauth2Client, {
+                    summary: title,
+                    description,
+                    start: { dateTime: startTime, timeZone: timeZone },
+                    end: { dateTime: eventEndTime, timeZone: timeZone },
+                    location,
+                });
+            } catch (error) {
+                console.error("Error creating Google Calendar event", error);
+                return res.status(500).json({ msg: "Error creating Google Calendar event", error: error.message });
+            }
         }
+        
 
         await newEvent.location.setCoordinates();
         await newEvent.save();
@@ -297,19 +312,20 @@ const updateRSVP = async (req, res) => {
 }
 
 const sendInvitationEmail = async (toEmail, event) => {
-    const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS
-        }
-    });
+    try {
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            }
+        });
 
-    const mailOptions = {
-        from: process.env.SMTP_USER,
-        to: toEmail,
-        subject: `You're Invited to ${event.title}`,
-        html: `
+        const mailOptions = {
+            from: process.env.SMTP_USER,
+            to: toEmail,
+            subject: `You're Invited to ${event.title}`,
+            html: `
             <h3>Hey Creator,
             We hope this message finds you well!
             </h3>
@@ -325,17 +341,24 @@ const sendInvitationEmail = async (toEmail, event) => {
             <h4>We hope to see you there!</h4>
             <h4>Best regards,</h4>
             <h4>TEAM EVENTRON</h4>
-        `
-    };
+            ` // Email body
+        };
 
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log("Invitation email sent successfully");
+        // Send email asynchronously
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email:", error);
+            } else {
+                console.log("Invitation email sent successfully:", info.response);
+            }
+        });
     } catch (error) {
-        console.error("Error sending email:", error);
+        console.error("Error in sending invitation email:", error);
         throw new Error("Error sending invitation email");
     }
 };
+
+
 
 
 
