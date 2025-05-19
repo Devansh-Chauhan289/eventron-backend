@@ -34,6 +34,7 @@ const mediacontroller = async (req) => {
 const createEventInDatabase = async (req, res) => {
     const { title, description, startTime, endTime, timeZone, location, invitees } = req.body;
     console.log("invitees",invitees)
+    console.log("media",req.file)
     let parseInvite = [];
     try {
         parseInvite = JSON.parse(invitees); // Only parse if the data is a valid JSON
