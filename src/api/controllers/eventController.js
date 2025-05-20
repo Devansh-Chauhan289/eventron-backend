@@ -30,7 +30,7 @@ const mediacontroller = async (req) => {
 
 
 const createEventInDatabase = async (req, res) => {
-    const { title, description, startTime, endTime, timeZone, location, invitees } = req.body;
+    const { title, description, startTime, endTime, timeZone, location, invitees,category } = req.body;
     let parseInvite = JSON.parse(invitees);
     console.log("parse - ",parseInvite);
     console.log("invitees - ",invitees);
@@ -94,7 +94,7 @@ const createEventInDatabase = async (req, res) => {
                     timeZone: timeZone,
                 },
             },
-            
+            category : category,
             location: {
                 address: location,
             },
