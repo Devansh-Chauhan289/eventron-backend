@@ -34,7 +34,7 @@ const createEventInDatabase = async (req, res) => {
     let parseInvite = JSON.parse(invitees);
     console.log("parse - ",parseInvite);
     console.log("invitees - ",invitees);
-    
+    console.log("category",category)
     if (!title || !startTime || !location) {
         return res.status(400).json({ msg: "Missing required fields" });
     }
@@ -94,7 +94,7 @@ const createEventInDatabase = async (req, res) => {
                     timeZone: timeZone,
                 },
             },
-            category,
+            category : category,
             location: {
                 address: location,
             },
